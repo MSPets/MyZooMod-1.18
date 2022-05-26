@@ -1,0 +1,9 @@
+A common subpackage strategy has packages for common and client code, which is code that can be run on both server/client and only client, respectively.
+Inside the common package would go things like Items, Blocks, and Block Entities (which can each, in turn, be another subpackage).
+Things like Screens and Renderers would go inside the client package.
+
+For Example:
+An Item called PowerRing would be in an item package, with a class name of PowerRingItem.
+A Block called NotDirt would be in a block package, with a class name of NotDirtBlock.
+Finally, a BlockEntity for a block called SuperChewer would be a block.entity or blockentity package, with a class name of SuperChewerBlockEntity.
+

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "myzoomod:block/feedingtrough_top",
+    "bottom": "myzoomod:block/feedingtrough_bottom",
+    "side": "myzoomod:block/feedingtrough_side"
+  }
+}
