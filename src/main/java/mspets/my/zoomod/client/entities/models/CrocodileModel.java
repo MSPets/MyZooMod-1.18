@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import mspets.my.zoomod.MyZooMod;
 import mspets.my.zoomod.common.entities.CrocodileEntity;
 import net.minecraft.client.model.AgeableListModel;
-import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -27,6 +26,7 @@ public class CrocodileModel<Type extends CrocodileEntity> extends AgeableListMod
     private final ModelPart tailModel;
     private final ModelPart tail2Model;
     private final ModelPart tail3Model;
+    private float lieDownAmount;
 
     public CrocodileModel(ModelPart root)
     {
@@ -71,47 +71,63 @@ public class CrocodileModel<Type extends CrocodileEntity> extends AgeableListMod
     @Override
     public void prepareMobModel(Type pEntity, float pLimbSwing, float pLimbSwingAmount, float pPartialTick)
     {
+        this.lieDownAmount = pEntity.getLieDownAmount(pPartialTick);
 
+        if (this.lieDownAmount <= 0.0F)
+        {
+            this.frontRightLeg.xRot = 0.0F;
+            this.frontRightLeg.zRot = 0.0F;
+            this.frontLeftLeg.xRot = 0.0F;
+            this.frontLeftLeg.zRot = 0.0F;
+            this.backRightLeg.xRot = 0.0F;
+            this.backRightLeg.zRot = 0.0F;
+            this.backLeftLeg.xRot = 0.0F;
+            this.backLeftLeg.zRot = 0.0F;
+        }
+        this.body.y = 15.0F;
+        this.body.z = 0.0F;
+        this.head.y = 0.0F;
+        this.head.z = -25.0F;
+        this.frontRightLeg.y = -6.0F;
+        this.frontRightLeg.z = -22.0F;
+        this.frontLeftLeg.y = -6.0F;
+        this.frontLeftLeg.z = -22.0F;
+        this.backRightLeg.y = -6.0F;
+        this.backRightLeg.z = 22.0F;
+        this.backLeftLeg.y = -6.0F;
+        this.backLeftLeg.z = 22.0F;
+        this.tailModel.y = 0.0F;
+        this.tailModel.z = 25F;
+        this.tail2Model.y= 0.0F;
+        this.tail2Model.z = 16F;
+        this.tail3Model.y = 0.0F;
+        this.tail3Model.z = 16F;
     }
 
     @Override
     public void setupAnim(Type entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch)
     {
 
-        this.head.xRot = headPitch * ((float)Math.PI / 180F);
-        this.head.yRot = netHeadYaw * ((float)Math.PI / 180F);
-        this.frontRightLeg.xRot = Mth.cos(limbSwing * 0.6662F + (float)Math.PI) * 1.4F * limbSwingAmount;
+        this.head.xRot = headPitch * ((float) Math.PI / 180F);
+        this.head.yRot = netHeadYaw * ((float) Math.PI / 180F);
+        this.frontRightLeg.xRot = Mth.cos(limbSwing * 0.6662F + (float) Math.PI) * 1.4F * limbSwingAmount;
         this.frontLeftLeg.xRot = Mth.cos(limbSwing * 0.6662F) * 1.4F * limbSwingAmount;
         this.backRightLeg.xRot = Mth.cos(limbSwing * 0.6662F) * 1.4F * limbSwingAmount;
-        this.backLeftLeg.xRot = Mth.cos(limbSwing * 0.6662F + (float)Math.PI) * 1.4F * limbSwingAmount;
+        this.backLeftLeg.xRot = Mth.cos(limbSwing * 0.6662F + (float) Math.PI) * 1.4F * limbSwingAmount;
 
         this.tailModel.yRot = Mth.cos(limbSwing * 0.6662F) * 1.4F * (limbSwingAmount * .2F);
         this.tail2Model.yRot = Mth.cos(limbSwing * 0.6662F) * 1.4F * (limbSwingAmount * .2F);
         this.tail3Model.yRot = Mth.cos(limbSwing * 0.6662F) * 1.4F * (limbSwingAmount * .2F);
 
-
-        float age = ageInTicks - (float) entity.tickCount;
-        float scale = entity.getStandingAnimationScale(age);
-        scale *= scale;
-        float newScale = 1.0F - scale;
-
-        this.body.xRot = ((float)Math.PI / 2F) - scale * (float)Math.PI * 0.35F;
-        this.body.y = 9.0F * newScale + 11.0F * scale;
-        this.frontRightLeg.y = 14.0F * newScale - 6.0F * scale;
-        this.frontRightLeg.z = -8.0F * newScale - 4.0F * scale;
-        this.frontRightLeg.xRot -= newScale * (float)Math.PI * 0.45F;
-        this.frontLeftLeg.y = this.frontRightLeg.y;
-        this.frontLeftLeg.z = this.frontRightLeg.z;
-        this.frontLeftLeg.xRot -= scale * (float)Math.PI * 0.45F;
-        if (this.young) {
-            this.head.y = 10.0F * newScale - 9.0F * scale;
-            this.head.z = -16.0F * newScale - 7.0F * scale;
-        } else {
-            this.head.y = 10.0F * newScale - 14.0F * scale;
-            this.head.z = -16.0F * newScale - 3.0F * scale;
+        /*
+        if(this.lieDownAmount > 0.0F)
+        {
+             this.frontLeftLeg.xRot = 2F;
+             this.frontRightLeg.xRot = 2F;
+             this.backLeftLeg.xRot = 2F;
+             this.backRightLeg.xRot = 2F;
         }
-
-        this.head.xRot += scale * (float)Math.PI * 0.15F;
+         */
     }
 
     @Override
@@ -120,11 +136,13 @@ public class CrocodileModel<Type extends CrocodileEntity> extends AgeableListMod
         body.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
-    protected Iterable<ModelPart> headParts() {
+    protected Iterable<ModelPart> headParts()
+    {
         return ImmutableList.of(this.head);
     }
 
-    protected Iterable<ModelPart> bodyParts() {
-        return ImmutableList.of(this.body, this.backRightLeg, this.backLeftLeg, this.frontRightLeg, this.frontLeftLeg);
+    protected Iterable<ModelPart> bodyParts()
+    {
+        return ImmutableList.of(this.body, this.backRightLeg, this.backLeftLeg, this.frontRightLeg, this.frontLeftLeg, this.tailModel, this.tail2Model, this.tail3Model);
     }
 }

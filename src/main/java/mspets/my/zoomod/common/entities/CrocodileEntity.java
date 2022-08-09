@@ -24,20 +24,23 @@ import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.function.Predicate;
 
+import static mspets.my.zoomod.MyZooMod.LOGGER;
+
+
+
 // https://forums.minecraftforge.net/topic/92625-1163-cant-register-entity-with-deferred-register/
 public class CrocodileEntity extends Animal implements NeutralMob
 {
-    // ANIMATION
-    private static final EntityDataAccessor<Boolean> DATA_STANDING_ID = SynchedEntityData.defineId(CrocodileEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final float STAND_ANIMATION_TICKS = 6.0f;
-    private float clientSideStandAnimationO;
-    private float clientSideStandAnimation;
     // ANGER
     private static final UniformInt PERSISTENT_ANGER_TIME = TimeUtil.rangeOfSeconds(20, 39);
+    private static final EntityDataAccessor<Boolean> IS_LYING = SynchedEntityData.defineId(CrocodileEntity.class, EntityDataSerializers.BOOLEAN);
+
     private int remainingPersistentAngerTime;
     @Nullable
     private UUID persistentAngerTarget;
 
+    private float lieDownAmount;
+    private float lieDownAmountO;
 
     public CrocodileEntity(EntityType<? extends Animal> type, Level worldIn)
     {
@@ -61,9 +64,11 @@ public class CrocodileEntity extends Animal implements NeutralMob
         this.goalSelector.addGoal(priority++, new CrocodileEntity.CrocodileMeleeAttackGoal());
         this.goalSelector.addGoal(priority++, new CrocodileEntity.CrocodilePanicGoal());
         this.goalSelector.addGoal(priority++, new FollowParentGoal(this, 1.25D));
+        //this.goalSelector.addGoal(priority++, new CrocodileEntity.CrocodileLaydownGoal());
         this.goalSelector.addGoal(priority++, new RandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(priority++, new LookAtPlayerGoal(this, Player.class, 6.0F));
         this.goalSelector.addGoal(priority++, new RandomLookAroundGoal(this));
+
         this.targetSelector.addGoal(priority++, new CrocodileEntity.CrocodileHurtByTargetGoal());
         this.targetSelector.addGoal(priority++, new CrocodileEntity.CrocodileAttackPlayerGoal());
         this.targetSelector.addGoal(priority++, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false, this::isAngryAt));
@@ -82,13 +87,7 @@ public class CrocodileEntity extends Animal implements NeutralMob
     public void addAdditionalSaveData(CompoundTag compound)
     {
         super.addAdditionalSaveData(compound);
-        this.addAdditionalSaveData(compound);
-    }
-
-    protected void defineSynchedData()
-    {
-        super.defineSynchedData();
-        this.entityData.define(DATA_STANDING_ID, false);
+        this.addPersistentAngerSaveData(compound);
     }
 
     public static AttributeSupplier.Builder prepareAttributes()
@@ -98,6 +97,13 @@ public class CrocodileEntity extends Animal implements NeutralMob
                 .add(Attributes.MOVEMENT_SPEED, 0.3)
                 .add(Attributes.FOLLOW_RANGE, 40)
                 .add(Attributes.ATTACK_DAMAGE, 6.0D);
+    }
+
+    @Override
+    protected void defineSynchedData()
+    {
+        super.defineSynchedData();
+        this.entityData.define(IS_LYING, false);
     }
 
     // ANGER / ATTACKING
@@ -139,60 +145,78 @@ public class CrocodileEntity extends Animal implements NeutralMob
 
     // TODO get sounds
     // TODO natural spawns
+    // TODO setup laying down animation
 
-    // Animations
-    public EntityDimensions getDimensions(Pose pose)
+    // Lying down
+    public void setLying(boolean bool)
     {
-        if (this.clientSideStandAnimation > 0.0F)
-        {
-            float f = this.clientSideStandAnimation / 6.0F;
-            float f1 = 1.0F + f;
-            return super.getDimensions(pose).scale(1.0F, f1);
-        }
-        else
-        {
-            return super.getDimensions(pose);
-        }
+        this.entityData.set(IS_LYING, bool);
     }
 
-    public boolean isStanding()
+    public boolean isLying()
     {
-        return this.entityData.get(DATA_STANDING_ID);
+        return this.entityData.get(IS_LYING);
     }
 
-    public void setStanding(boolean standing)
+    public float getLieDownAmount(float f)
     {
-        this.entityData.set(DATA_STANDING_ID, standing);
-    }
-
-    public float getStandingAnimationScale(float f)
-    {
-        return Mth.lerp(f, this.clientSideStandAnimationO, this.clientSideStandAnimation) / 6.0F;
+        return Mth.lerp(f, this.lieDownAmountO, this.lieDownAmount);
     }
 
     public void tick()
     {
         super.tick();
-        if (this.level.isClientSide)
-        {
-            if (this.clientSideStandAnimation != this.clientSideStandAnimationO)
-            {
-                this.refreshDimensions();
-            }
-            this.clientSideStandAnimationO = this.clientSideStandAnimation;
-            if (this.isStanding())
-            {
-                this.clientSideStandAnimation = Mth.clamp(this.clientSideStandAnimation + 1.0F, 0.0F, 6.0F);
-            }
-            else
-            {
-                this.clientSideStandAnimation = Mth.clamp(this.clientSideStandAnimation - 1.0F, 0.0F, 6.0F);
-            }
-        }
 
         if (!this.level.isClientSide)
         {
             this.updatePersistentAnger((ServerLevel) this.level, true);
+        }
+        // Liedown
+        this.lieDownAmountO = this.lieDownAmount;
+        if (this.isLying())
+        {
+            this.lieDownAmount = Math.min(1.0F, this.lieDownAmount + 0.15F);
+        }
+        else
+        {
+            this.lieDownAmount = Math.max(0.0F, this.lieDownAmount - 0.22F);
+        }
+    }
+
+    @Override
+    public EntityDimensions getDimensions(Pose pPose)
+    {
+        return super.getDimensions(pPose).scale(1.4F, 1);
+    }
+
+    // Goal Classes
+    class CrocodileLaydownGoal extends Goal
+    {
+        @Override
+        public void start()
+        {
+            CrocodileEntity.this.setLying(false);
+        }
+
+        @Override
+        public boolean canUse()
+        {
+            return !CrocodileEntity.this.isLying();
+        }
+
+        @Override
+        public void stop()
+        {
+            CrocodileEntity.this.setLying(false);
+        }
+
+        @Override
+        public void tick()
+        {
+            if (!CrocodileEntity.this.isLying())
+            {
+                CrocodileEntity.this.setLying(true);
+            }
         }
     }
 
@@ -279,26 +303,21 @@ public class CrocodileEntity extends Animal implements NeutralMob
             {
                 this.resetAttackCooldown();
                 this.mob.doHurtTarget(enemy);
-                CrocodileEntity.this.setStanding(false);
             }
+            /*
             else if (distToEnemy <= d * 2.0D)
             {
+                LOGGER.error("TO FAR AWAY");
                 if (this.isTimeToAttack())
                 {
-                    CrocodileEntity.this.setStanding(false);
-                    this.resetAttackCooldown();
-                }
-
-                if (this.getTicksUntilNextAttack() <= 10)
-                {
-                    CrocodileEntity.this.setStanding(true);
+=                    this.resetAttackCooldown();
                 }
             }
             else
             {
                 this.resetAttackCooldown();
-                CrocodileEntity.this.setStanding(false);
             }
+             */
         }
 
         /**
@@ -306,13 +325,12 @@ public class CrocodileEntity extends Animal implements NeutralMob
          */
         public void stop()
         {
-            CrocodileEntity.this.setStanding(false);
             super.stop();
         }
 
         protected double getAttackReachSqr(LivingEntity target)
         {
-            return (double) (4.0F + target.getBbWidth());
+            return (double) (8.0F + target.getBbWidth());
         }
     }
 
